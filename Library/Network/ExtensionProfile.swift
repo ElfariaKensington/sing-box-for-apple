@@ -260,6 +260,11 @@ public class ExtensionProfile: ObservableObject {
         options["excludeDefaultRoute"] = await NSNumber(value: SharedPreferences.excludeDefaultRoute.get())
         options["autoRouteUseSubRangesByDefault"] = await NSNumber(value: SharedPreferences.autoRouteUseSubRangesByDefault.get())
         options["excludeAPNsRoute"] = await NSNumber(value: SharedPreferences.excludeAPNsRoute.get())
+        #if os(iOS)
+            options["hotspotEnabled"] = await NSNumber(value: SharedPreferences.hotspotEnabled.get())
+            options["hotspotPort"] = await NSNumber(value: SharedPreferences.hotspotPort.get())
+            options["hotspotVerbose"] = await NSNumber(value: SharedPreferences.hotspotVerbose.get())
+        #endif
 
         #if !os(tvOS)
             options["includeAllNetworks"] = await NSNumber(value: SharedPreferences.includeAllNetworks.get())

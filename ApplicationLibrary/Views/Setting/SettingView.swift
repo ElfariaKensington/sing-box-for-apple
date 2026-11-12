@@ -179,6 +179,15 @@ public struct SettingView: View {
                 #if !os(tvOS)
                     remoteControlLink
                 #endif
+                #if os(iOS)
+                    FormNavigationLink {
+                        HotspotView()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                            .background(Color(uiColor: .systemGroupedBackground))
+                    } label: {
+                        Label("Hotspot", systemImage: "personalhotspot")
+                    }
+                #endif
                 #if JAILBREAK
                     FormNavigationLink {
                         JailbreakView()

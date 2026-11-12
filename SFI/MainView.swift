@@ -439,6 +439,60 @@ struct MainView: View {
             .environment(\.ghosttyConfigEditor, ghosttyConfigEditor)
             .handlesExternalEvents(preferring: [], allowing: ["*"])
             .onOpenURL(perform: openURL)
+            .task { await handleTestLaunch() }
+    }
+
+    /// Test hook: `pymobiledevice3 developer dvt launch <bundle> --env SFI_TEST_VPN=start|stop|restart`
+    /// (optionally `--env SFI_TEST_HOTSPOT=1|0`, `--env SFI_TEST_HOTSPOT_VERBOSE=1|0`).
+    private func handleTestLaunch() async {
+        let env = ProcessInfo.processInfo.environment
+        if let value = env["SFI_TEST_HOTSPOT"] {
+            await SharedPreferences.hotspotEnabled.set(value == "1")
+        }
+        if let value = env["SFI_TEST_HOTSPOT_VERBOSE"] {
+            await SharedPreferences.hotspotVerbose.set(value == "1")
+        }
+        if let b64 = env["SFI_TEST_CONFIG_B64"], let data = Data(base64Encoded: b64) {
+            do {
+                let dir = FilePath.sharedDirectory.appendingPathComponent("configs", isDirectory: true)
+                try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                try data.write(to: dir.appendingPathComponent("config_hotspot_test.json"))
+                let profile = Profile(name: try await ProfileManager.uniqueName("hotspot-test"), type: .local, path: "configs/config_hotspot_test.json")
+                try await ProfileManager.create(profile)
+                if let id = profile.id { await SharedPreferences.selectedProfileID.set(id) }
+                NSLog("SFI_TEST_CONFIG: created profile id=\(profile.id ?? -1)")
+            } catch {
+                NSLog("SFI_TEST_CONFIG: failed \(error.localizedDescription)")
+            }
+        }
+        if env["SFI_TEST_PROXY"] == "start" {
+            await AppProxyService.shared.start()
+            NSLog("SFI_TEST_PROXY: running=\(AppProxyService.shared.isRunning) error=\(AppProxyService.shared.lastError ?? "-")")
+        }
+        guard let action = env["SFI_TEST_VPN"] else { return }
+        for _ in 0 ..< 60 {
+            if environments.extensionProfile != nil { break }
+            try? await Task.sleep(nanoseconds: 250_000_000)
+        }
+        guard let profile = environments.extensionProfile else {
+            NSLog("SFI_TEST_VPN: no extension profile")
+            return
+        }
+        do {
+            switch action {
+            case "start":
+                if !profile.status.isConnected { try await profile.start() }
+            case "stop":
+                try await profile.stop()
+            case "restart":
+                if profile.status.isConnected { try await profile.restart() } else { try await profile.start() }
+            default:
+                break
+            }
+            NSLog("SFI_TEST_VPN: \(action) ok")
+        } catch {
+            NSLog("SFI_TEST_VPN: \(action) failed: \(error.localizedDescription)")
+        }
     }
 
     private func updateButtonVisibility() {

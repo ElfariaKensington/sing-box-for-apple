@@ -23,6 +23,13 @@ public enum SharedPreferences {
     public static let selectedProfileID = Preference<Int64>("selected_profile_id", defaultValue: -1)
 
     #if os(iOS)
+        public static let hotspotEnabled = Preference<Bool>("hotspot_enabled", defaultValue: false)
+        public static let hotspotPort = Preference<Int>("hotspot_port", defaultValue: 7890)
+        public static let hotspotVerbose = Preference<Bool>("hotspot_verbose", defaultValue: false)
+        public static let proxyModeRunning = Preference<Bool>("proxy_mode_running", defaultValue: false)
+    #endif
+
+    #if os(iOS)
         private static let excludeLocalNetworksByDefault = true
     #elseif os(macOS)
         private static let excludeLocalNetworksByDefault = false

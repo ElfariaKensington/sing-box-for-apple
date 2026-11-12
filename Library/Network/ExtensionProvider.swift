@@ -267,9 +267,20 @@ open class ExtensionProvider: NEPacketTunnelProvider {
     }
 
     private func startService() async throws {
-        guard let configContent = tunnelOptions?["configContent"] as? String else {
+        guard var configContent = tunnelOptions?["configContent"] as? String else {
             throw ExtensionStartupError("(packet-tunnel) error: missing configContent in tunnel options")
         }
+        #if os(iOS)
+            // Hotspot sharing: only a loopback inbound here; the app owns the hotspot-facing
+            // listener (wildcard listeners are unreachable inside the extension).
+            let hotspotSettings = HotspotSettings(options: tunnelOptions)
+            if hotspotSettings.enabled {
+                HotspotLog.shared.sink = { [weak self] message, level in
+                    self?.writeMessage(message, level: level)
+                }
+                configContent = HotspotTether.injectInbound(config: configContent, port: hotspotSettings.internalPort)
+            }
+        #endif
 
         let options = LibboxOverrideOptions()
         do {
@@ -319,6 +330,9 @@ open class ExtensionProvider: NEPacketTunnelProvider {
 
     override open func stopTunnel(with reason: NEProviderStopReason) async {
         writeMessage("(packet-tunnel) stopping, reason: \(reason)")
+        #if os(iOS)
+            HotspotLog.shared.sink = nil
+        #endif
         #if os(iOS)
             screenStateObserver?.cancel()
             screenStateObserver = nil
